@@ -35,7 +35,7 @@ function RequireAuth({ children }) {
   let auth = React.useContext(AuthContext);;
   let location = useLocation();
 
-  if (!auth.isLoggedIn) {
+  if (!auth.state.isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
+import { Navigate, useNavigate } from "react-router-dom";
 import { AuthContext } from './authContext';
+
 
 function LoginPage() {
   const auth = React.useContext(AuthContext)
-
-  console.log(auth)
+  const { isLoggedIn } = auth.state;
+  const navigate = useNavigate();
 
   const [values, setValues] = useState({
     login: "",
@@ -14,10 +16,16 @@ function LoginPage() {
   });
 
   const submit = (e) => {
-    console.log(auth)
     e.preventDefault();
     auth.login(values)
   }
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      console.log(isLoggedIn)
+      navigate('/main', { replace: true });
+    }
+  }, [isLoggedIn]);
 
   const handleChange = (event) => {
     setValues((form) => ({
