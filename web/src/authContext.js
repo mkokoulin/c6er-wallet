@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import api from './api';
 
 export const AuthContext = React.createContext(null);
 
@@ -15,20 +16,22 @@ export const AuthProvider = props => {
   const setLoginSuccess = (isLoggedIn) => setState({isLoggedIn});
   const setLoginError = (loginError) => setState({loginError});
 
-  const login = (email, password) => {
-    // setLoginPending(true);
-    setLoginSuccess(true);
-    // setLoginError(null);
+  const login = (login, password) => {
+    setLoginPending(true);
 
-    // fetchLogin( email, password, error => {
-    //   setLoginPending(false);
-
-    //   if (!error) {
-    //     setLoginSuccess(true);
-    //   } else {
-    //     setLoginError(error);
-    //   }
-    // })
+    return api.post('http://localhost:8080/api/v1/user/login', {
+      email: login,
+      password: password
+    })
+    .then(res => {
+      setLoginSuccess(true);
+    })
+    .catch(err => {
+      setLoginError(err);
+    })
+    .finally(() => {
+      setLoginPending(true);
+    })
   }
 
   const logout = () => {

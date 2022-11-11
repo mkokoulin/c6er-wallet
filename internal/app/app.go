@@ -58,6 +58,8 @@ func New(ctx context.Context)(*App, error) {
 
 	s := server.New(cfg.Address, r)
 
+	logger.Log().Msg("ServerAddress: " + cfg.Address)
+	logger.Log().Msg("DataBase: " + cfg.DSN)
 
 	return &App{
 		DB: db,

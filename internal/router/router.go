@@ -12,7 +12,7 @@ func New(h *handlers.Handlers, cfg *config.Config) *chi.Mux {
 
 	router.Route("/", func(r chi.Router) {
 		r.Post("/api/v1/user/registration", h.Registration)
-		r.Get("/api/v1/user/login", h.Registration)
+		r.Post("/api/v1/user/login", h.Login)
 	})
 
 	return router

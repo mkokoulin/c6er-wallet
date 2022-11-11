@@ -80,11 +80,11 @@ func (h *Handlers) Registration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Authorization", "Bearer "+token.AccessToken)
-
+	w.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1:3000")
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) login(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	r.Header.Add("Content-Type", "application/json; charset=utf-8")
 
 	user := models.User{}
@@ -122,7 +122,18 @@ func (h *Handlers) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Authorization", "Bearer "+token.AccessToken)
+	body, err = json.Marshal(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
+	w.Header().Set("Authorization", "Bearer "+token.AccessToken)
+	w.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1:3000")
 	w.WriteHeader(http.StatusOK)
+
+	_, err = w.Write(body)
+	if err == nil {
+		return
+	}
 }
