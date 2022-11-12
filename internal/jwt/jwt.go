@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -19,10 +18,10 @@ type TokenDetails struct {
 	RtExpires    int64
 }
 
-func CreateToken(userID string, cfg config.Config) (*TokenDetails, error) {
+func CreateToken(userID string, cfg *config.Config) (*TokenDetails, error) {
 	td := &TokenDetails{
 		AtExpires: time.Now().Add(time.Minute * time.Duration(cfg.AccessTokenLiveTimeMinutes)).Unix(),
-		RtExpires: time.Now().Add(time.Second - time.Duration(cfg.RefreshTokenLiveTimeDays)).Unix(),
+		RtExpires: time.Now().Add(time.Minute * time.Duration(cfg.RefreshTokenLiveTimeHours)).Unix(),
 	}
 
 	atClaims := jwt.MapClaims{
@@ -56,33 +55,9 @@ func CreateToken(userID string, cfg config.Config) (*TokenDetails, error) {
 	return td, nil
 }
 
-func ValidateToken(r *http.Request, cfg *config.Config) (*jwt.Token, error) {
-	tokenString := ExtractToken(r)
+func RefreshToken(r *http.Request, cfg *config.Config) (*TokenDetails, error) {
+	_, refreshToken := ExtractToken(r);
 
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(cfg.AccessTokenSecret), nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	if _, ok := token.Claims.(jwt.MapClaims); !ok && !token.Valid {
-		return nil, errors.New("expired token")
-	}
-
-	return token, nil
-}
-
-func ExtractToken(r *http.Request) string {
-	bearerToken := r.Header.Get("Authorization")
-	strArr := strings.Split(bearerToken, " ")
-	if len(strArr) == 2 {
-		return strArr[1]
-	}
-	return ""
-}
-
-func RefreshToken(refreshToken string, cfg config.Config) (*TokenDetails, error) {
 	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -97,20 +72,57 @@ func RefreshToken(refreshToken string, cfg config.Config) (*TokenDetails, error)
 		return nil, err
 	}
 
-	claims, ok := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims);
 
 	if ok && token.Valid {
-		userID := claims["user_id"].(string)
+		userID := claims["user_id"].(string);
 
-		td, err := CreateToken(userID, cfg)
+		log.Println("refreshing token has started");
+
+		fmt.Println("userID", userID);
+
+		td, err := CreateToken(userID, cfg);
 		if err != nil {
 			return nil, err
 		}
-
-		log.Println("token has been refreshed")
 
 		return td, nil
 	} else {
 		return nil, errors.New("refresh token expired")
 	}
+}
+
+func ValidateToken(r *http.Request, cfg *config.Config) (*jwt.Token, string, error) {
+	var userID string
+	at, _ := ExtractToken(r)
+
+	accessToken, err := jwt.Parse(at, func(token *jwt.Token) (interface{}, error) {
+		return []byte(cfg.AccessTokenSecret), nil
+	})
+	if err != nil {
+		return nil, userID, err
+	}
+
+	userID = accessToken.Claims.(jwt.MapClaims)["user_id"].(string)
+
+	if _, ok := accessToken.Claims.(jwt.MapClaims); !ok && !accessToken.Valid {
+		return nil, "", errors.New("expired token")
+	}
+
+	return accessToken, userID, nil
+}
+
+func ExtractToken(r *http.Request) (string, string) {
+	var at string
+	var rt string
+	for _, c := range r.Cookies() {
+		if c.Name == "access_token" {
+			at = c.Value;
+		}
+		if c.Name == "refresh_token" {
+			rt = c.Value;
+		}
+	}
+
+	return at, rt
 }

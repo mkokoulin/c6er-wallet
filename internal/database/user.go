@@ -21,7 +21,7 @@ func (db *Database) CreateUser(ctx context.Context, user models.User) (models.Us
 		}
 
 		if exists {
-			return customerrors.NewErrorWithDB(errors.New(""), "user already exists")
+			return customerrors.NewErrorWithDB(errors.New("user already exists"), "UniqConstraint")
 		}
 
 		hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -50,11 +50,11 @@ func (db *Database) CheckUserPassword(ctx context.Context, user models.User) (st
 
 	err := db.Conn.WithContext(ctx).Model(&models.User{}).Where("login = ?", user.Login).First(&result).Error
 	if err != nil {
-		return result.Login, customerrors.NewErrorWithDB(err, "user not found")
+		return "", customerrors.NewErrorWithDB(err, "UserNotFound")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(result.Password), []byte(user.Password)); err != nil {
-		return result.Login, customerrors.NewErrorWithDB(err, "an unknown error occurred during generation password")
+		return "", customerrors.NewErrorWithDB(err, "an unknown error occurred during generation password")
 	}
 
 	return result.ID, nil

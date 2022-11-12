@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/mkokoulin/c6er-wallet.git/internal/config"
 	custom_error "github.com/mkokoulin/c6er-wallet.git/internal/errors"
+	"github.com/mkokoulin/c6er-wallet.git/internal/helpers"
 	"github.com/mkokoulin/c6er-wallet.git/internal/jwt"
 	"github.com/mkokoulin/c6er-wallet.git/internal/models"
 	"github.com/rs/zerolog"
@@ -44,13 +45,13 @@ func (h *Handlers) Registration(w http.ResponseWriter, r *http.Request) {
 
 	user := models.User{}
 
-	defer r.Body.Close()
-
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	defer r.Body.Close()
 
 	if len(body) == 0 {
 		http.Error(w, "the body is missing", http.StatusBadRequest)
@@ -73,14 +74,13 @@ func (h *Handlers) Registration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := jwt.CreateToken(newUser.ID, h.cfg)
+	token, err := jwt.CreateToken(newUser.ID, &h.cfg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Authorization", "Bearer "+token.AccessToken)
-	w.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1:3000")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -89,13 +89,13 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 	user := models.User{}
 
-	defer r.Body.Close()
-
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	defer r.Body.Close()
 
 	if len(body) == 0 {
 		http.Error(w, "the body is missing", http.StatusBadRequest)
@@ -111,29 +111,32 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.repo.CheckUserPassword(r.Context(), user)
 	var dbErr *custom_error.ErrorWithDB
 
-	if errors.As(err, &dbErr) && dbErr.Title == "UniqConstraint" {
-		http.Error(w, err.Error(), http.StatusConflict)
+	if errors.As(err, &dbErr) && dbErr.Title == "UserNotFound" {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	token, err := jwt.CreateToken(userID, h.cfg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	body, err = json.Marshal(token)
+	token, err := jwt.CreateToken(userID, &h.cfg)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	atc := helpers.CreateCookie("access_token", token.AccessToken, false, false);
+	rtc := helpers.CreateCookie("refresh_token", token.RefreshToken, true, true);
+
+	http.SetCookie(w, atc)
+	http.SetCookie(w, rtc)
 
 	w.Header().Set("Authorization", "Bearer "+token.AccessToken)
-	w.Header().Set("Access-Control-Allow-Origin", "http://127.0.0.1:3000")
 	w.WriteHeader(http.StatusOK)
+}
 
-	_, err = w.Write(body)
-	if err == nil {
-		return
-	}
+func (h *Handlers) CheckAuth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
