@@ -126,12 +126,10 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	
+	atc, rtc := CreateAccessRefreshCookies(token)
 
-	atc := helpers.CreateCookie("access_token", token.AccessToken, false, false);
-	rtc := helpers.CreateCookie("refresh_token", token.RefreshToken, true, true);
-
-	http.SetCookie(w, atc)
-	http.SetCookie(w, rtc)
+	SetCookies(w, atc, rtc)
 
 	w.Header().Set("Authorization", "Bearer "+token.AccessToken)
 	w.WriteHeader(http.StatusOK)
@@ -139,4 +137,16 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handlers) CheckAuth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func CreateAccessRefreshCookies(token *jwt.TokenDetails)(*http.Cookie, *http.Cookie) {
+	atc := helpers.CreateCookie("access_token", token.AccessToken, false, false);
+	rtc := helpers.CreateCookie("refresh_token", token.RefreshToken, true, true);
+
+	return atc, rtc
+}
+
+func SetCookies(w http.ResponseWriter, atc, rtc *http.Cookie) {
+	http.SetCookie(w, atc)
+	http.SetCookie(w, rtc)
 }
